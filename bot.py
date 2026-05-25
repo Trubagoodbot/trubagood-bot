@@ -1,5 +1,4 @@
 import os
-
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder,
@@ -11,7 +10,7 @@ from telegram.ext import (
     filters,
 )
 
-TOKEN = os.getenv("8733572818:AAEHAItDvw2AZQe8l2VbOLpYVh8WIiYhb9s")
+TOKEN = os.environ["BOT_TOKEN"]
 
 ADMIN_ID = 408678786
 GROUP_ID = -5213979113
