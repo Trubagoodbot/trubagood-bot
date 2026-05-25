@@ -11,7 +11,7 @@ from telegram.ext import (
     filters,
 )
 
-TOKEN = os.getenv("8733572818:AAEb4OWnRkPQGHqeyy8HuX8ox4Jy-iT10hg")
+TOKEN = os.getenv("8733572818:AAEHAItDvw2AZQe8l2VbOLpYVh8WIiYhb9s")
 
 ADMIN_ID = 408678786
 GROUP_ID = -5213979113
