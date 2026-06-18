@@ -42,6 +42,17 @@ def get_price(problem_text):
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+
+    await context.bot.send_message(
+        chat_id=ADMIN_ID,
+        text=(
+            "👀 Новый пользователь открыл бота\n\n"
+            f"👤 Имя: {user.full_name}\n"
+            f"🔗 Username: @{user.username if user.username else 'нет'}\n"
+            f"🆔 ID: {user.id}"
+        )
+    )
     await update.message.reply_text(
         "👋 Добро пожаловать в TRUBAGOOD\n\n"
         "🔧 Сантехника и мелкий ремонт\n"
