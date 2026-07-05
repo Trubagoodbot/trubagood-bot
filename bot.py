@@ -1,7 +1,12 @@
 import os
 from texts import TEXTS
 
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import (
+    Update,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+)
+
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
@@ -17,7 +22,7 @@ TOKEN = os.environ["BOT_TOKEN"]
 ADMIN_ID = 408678786
 GROUP_ID = -5213979113
 
-NAME, PHONE, ADDRESS, MEDIA, PROBLEM = range(5)
+LANGUAGE, NAME, PHONE, ADDRESS, MEDIA, PROBLEM = range(6)
 
 orders = {}
 
@@ -25,19 +30,19 @@ orders = {}
 def get_price(problem_text):
     text = problem_text.lower()
 
-    if "смеситель" in text:
+    if "смеситель" in text or "segisti" in text:
         return "50–150€"
-    if "унитаз" in text:
+    if "унитаз" in text or "wc" in text or "tualett" in text:
         return "70–160€"
-    if "сифон" in text:
+    if "сифон" in text or "sifoon" in text:
         return "50–100€"
-    if "душ" in text:
+    if "душ" in text or "duš" in text:
         return "80–160€"
-    if "радиатор" in text:
+    if "радиатор" in text or "radiaator" in text:
         return "90–180€"
-    if "труба" in text or "протекает" in text or "течь" in text:
+    if "труба" in text or "протекает" in text or "течь" in text or "toru" in text or "lekib" in text:
         return "60–120€"
-    if "засор" in text or "канализац" in text:
+    if "засор" in text or "канализац" in text or "ummistus" in text:
         return "50–150€"
 
     return None
@@ -45,6 +50,8 @@ def get_price(problem_text):
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
+    source = context.args[0] if context.args else "unknown"
+    context.user_data["source"] = source
 
     await context.bot.send_message(
         chat_id=ADMIN_ID,
@@ -52,71 +59,100 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "👀 Новый пользователь открыл бота\n\n"
             f"👤 Имя: {user.full_name}\n"
             f"🔗 Username: @{user.username if user.username else 'нет'}\n"
-            f"🆔 ID: {user.id}"
+            f"🆔 ID: {user.id}\n"
+            f"📍 Источник: {source}"
         )
     )
+
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🇷🇺 Русский", callback_data="lang_ru")],
+        [InlineKeyboardButton("🇪🇪 Eesti", callback_data="lang_et")],
+    ])
+
     await update.message.reply_text(
-        "👋 Добро пожаловать в TRUBAGOOD\n\n"
-        "🔧 Сантехника и мелкий ремонт\n"
-        "🚿 Смесители\n"
-        "🚽 Унитазы\n"
-        "🔥 Радиаторы\n"
-        "🚰 Засоры\n"
-        "🔩 Протечки\n\n"
-        "📍 Работаем по Таллину\n"
-        "⏰ Ежедневно 08:00–22:00\n\n"
-        "Как вас зовут?"
+        "🌍 Valige keel / Выберите язык",
+        reply_markup=keyboard
     )
+
+    return LANGUAGE
+
+
+async def choose_language(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    lang = query.data.replace("lang_", "")
+    context.user_data["lang"] = lang
+
+    await query.message.reply_text(TEXTS[lang]["language_selected"])
+    await query.message.reply_text(TEXTS[lang]["welcome"])
+
     return NAME
 
 
 async def get_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    lang = context.user_data.get("lang", "ru")
+
     context.user_data["name"] = update.message.text
     context.user_data["client_chat_id"] = update.effective_chat.id
-    await update.message.reply_text("Введите ваш номер телефона 📞")
+
+    await update.message.reply_text(TEXTS[lang]["ask_phone"])
+
     return PHONE
 
 
 async def get_phone(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    lang = context.user_data.get("lang", "ru")
+
     context.user_data["phone"] = update.message.text
-    await update.message.reply_text("Введите адрес 📍")
+
+    await update.message.reply_text(TEXTS[lang]["ask_address"])
+
     return ADDRESS
 
 
 async def get_address(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    lang = context.user_data.get("lang", "ru")
+
     context.user_data["address"] = update.message.text
-    await update.message.reply_text(
-        "Пришлите фото или видео проблемы 📸\n"
-        "Если фото/видео нет — напишите: нет"
-    )
+
+    await update.message.reply_text(TEXTS[lang]["ask_media"])
+
     return MEDIA
 
 
 async def get_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    lang = context.user_data.get("lang", "ru")
+
     context.user_data["media_type"] = "none"
     context.user_data["media_file_id"] = None
 
     if update.message.photo:
         context.user_data["media_type"] = "photo"
         context.user_data["media_file_id"] = update.message.photo[-1].file_id
-        await update.message.reply_text("Фото получил ✅\nТеперь опишите проблему 🔧")
+        await update.message.reply_text(TEXTS[lang]["media_received_photo"])
         return PROBLEM
 
     if update.message.video:
         context.user_data["media_type"] = "video"
         context.user_data["media_file_id"] = update.message.video.file_id
-        await update.message.reply_text("Видео получил ✅\nТеперь опишите проблему 🔧")
+        await update.message.reply_text(TEXTS[lang]["media_received_video"])
         return PROBLEM
 
-    if update.message.text and update.message.text.lower() == "нет":
-        await update.message.reply_text("Хорошо. Теперь опишите проблему 🔧")
-        return PROBLEM
+    if update.message.text:
+        text = update.message.text.lower()
+        if text in ["нет", "ei", "no"]:
+            await update.message.reply_text(TEXTS[lang]["media_skip"])
+            return PROBLEM
 
-    await update.message.reply_text("Пришлите фото/видео или напишите: нет")
+    await update.message.reply_text(TEXTS[lang]["media_wrong"])
+
     return MEDIA
 
 
 async def get_problem(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    lang = context.user_data.get("lang", "ru")
+
     problem = update.message.text
     price = get_price(problem)
     order_id = str(update.effective_chat.id)
@@ -128,11 +164,13 @@ async def get_problem(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     summary = (
         f"🆕 Новая заявка #{order_id}\n\n"
+        f"🌍 Язык: {lang}\n"
+        f"📍 Источник: {context.user_data.get('source', 'unknown')}\n\n"
         f"👤 Имя: {context.user_data['name']}\n"
         f"📞 Телефон: {context.user_data['phone']}\n"
         f"📍 Адрес: {context.user_data['address']}\n"
         f"🔧 Проблема: {problem}\n"
-        f"💰 Цена: {price if price else 'Уточняется'}"
+        f"💰 Цена: {price if price else 'Требуется ручная оценка мастера'}"
     )
 
     keyboard = InlineKeyboardMarkup([
@@ -150,20 +188,36 @@ async def get_problem(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await context.bot.send_video(chat_id=ADMIN_ID, video=context.user_data["media_file_id"])
         await context.bot.send_video(chat_id=GROUP_ID, video=context.user_data["media_file_id"])
 
-    if price:
-        await update.message.reply_text(
-            f"✅ Заявка принята\n\n"
-            f"💰 Предварительная стоимость: {price}\n\n"
-            f"👨‍🔧 Ищем свободного мастера.\n"
-            f"📞 После назначения мастер свяжется с вами для уточнения цены и времени.\n\n"
-            f"⚠️ Финальная стоимость зависит от сложности работ."
-        )
+    if lang == "et":
+        if price:
+            client_message = (
+                "✅ Taotlus on saadetud\n\n"
+                f"💰 Esialgne hind: {price}\n\n"
+                "👨‍🔧 Meister vaatab info üle ja võtab teiega ühendust.\n\n"
+                "⚠️ Lõplik hind sõltub töö keerukusest."
+            )
+        else:
+            client_message = (
+                "✅ Taotlus on saadetud\n\n"
+                "👨‍🔧 Meister vaatab info üle ja arvutab vajadusel esialgse hinna.\n"
+                "📞 Seejärel võtab meister teiega ühendust."
+            )
     else:
-        await update.message.reply_text(
-            "✅ Заявка принята\n\n"
-            "👨‍🔧 Ищем свободного мастера.\n"
-            "📞 Мастер свяжется с вами для уточнения цены и времени."
-        )
+        if price:
+            client_message = (
+                "✅ Заявка отправлена\n\n"
+                f"💰 Предварительная стоимость: {price}\n\n"
+                "👨‍🔧 Мастер посмотрит информацию и свяжется с вами.\n\n"
+                "⚠️ Финальная стоимость зависит от сложности работ."
+            )
+        else:
+            client_message = (
+                "✅ Заявка отправлена\n\n"
+                "👨‍🔧 Мастер посмотрит информацию и рассчитает предварительную цену.\n"
+                "📞 После этого мастер свяжется с вами."
+            )
+
+    await update.message.reply_text(client_message)
 
     return ConversationHandler.END
 
@@ -203,7 +257,13 @@ async def accept_order(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("❌ Заявка отменена.")
+    lang = context.user_data.get("lang", "ru")
+
+    if lang == "et":
+        await update.message.reply_text("❌ Taotlus on tühistatud.")
+    else:
+        await update.message.reply_text("❌ Заявка отменена.")
+
     return ConversationHandler.END
 
 
@@ -212,6 +272,7 @@ app = ApplicationBuilder().token(TOKEN).build()
 conv_handler = ConversationHandler(
     entry_points=[CommandHandler("start", start)],
     states={
+        LANGUAGE: [CallbackQueryHandler(choose_language, pattern="^lang_")],
         NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_name)],
         PHONE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_phone)],
         ADDRESS: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_address)],
@@ -222,7 +283,7 @@ conv_handler = ConversationHandler(
 )
 
 app.add_handler(conv_handler)
-app.add_handler(CallbackQueryHandler(accept_order))
+app.add_handler(CallbackQueryHandler(accept_order, pattern="^accept_"))
 
 print("Бот запущен...")
 app.run_polling()
